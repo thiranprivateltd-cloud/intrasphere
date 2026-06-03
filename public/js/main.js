@@ -86,7 +86,121 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Initialize Portal After Login
+    
+    function updateFormPermissions() {
+        const userRole = JSON.parse(localStorage.getItem('intrasphere_user') || '{}').role;
+        const allowedRoles = {
+            'circular-form': ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'],
+            'announcement-form': ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'],
+            'task-form': ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'],
+            'meeting-form': ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'],
+            'attendance-form': ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'],
+            'notice-form': ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin']
+        };
+        Object.keys(allowedRoles).forEach(formId => {
+            const form = document.getElementById(formId);
+            if(form) {
+                const canAccess = allowedRoles[formId].includes(userRole);
+                let msgId = formId.split('-')[0] + '-unauth-msg';
+                if (formId === 'circular-form') msgId = 'circ-unauth-msg';
+                if (formId === 'announcement-form') msgId = 'ann-unauth-msg';
+                if (formId === 'meeting-form') msgId = 'meet-unauth-msg';
+                if (formId === 'attendance-form') msgId = 'att-unauth-msg';
+                const msgEl = document.getElementById(msgId);
+                if (!canAccess) {
+                    form.style.display = 'none';
+                    if (msgEl) msgEl.style.display = 'block';
+                } else {
+                    form.style.display = 'block';
+                    if (msgEl) msgEl.style.display = 'none';
+                }
+            }
+        });
+        
+        // Ensure setupForm hooks are re-initialized or bound
+        
+    }
+
+    // --- CRUD Edit/Delete Logic ---
+    const editModal = document.getElementById('edit-modal');
+    const closeBtn = document.getElementById('close-modal');
+    const editForm = document.getElementById('edit-form');
+    
+    if(closeBtn) closeBtn.onclick = () => editModal.style.display = 'none';
+    
+    window.openEditModal = (id, type, title, content) => {
+        document.getElementById('edit-id').value = id;
+        document.getElementById('edit-type').value = type;
+        document.getElementById('edit-title').value = title;
+        if(content) {
+            document.getElementById('edit-content').value = content;
+            document.getElementById('edit-content-group').style.display = 'block';
+        } else {
+            document.getElementById('edit-content').value = '';
+            document.getElementById('edit-content-group').style.display = 'none';
+        }
+        editModal.style.display = 'flex';
+    };
+    
+    window.deleteItem = async (id, type) => {
+        if(confirm('Are you sure you want to delete this item?')) {
+            const res = await apiRequest('/api/' + type + '/' + id, 'DELETE');
+            if(res) {
+                showToast('Deleted successfully!', 'success');
+                if(type === 'circulars') fetchCirculars();
+                if(type === 'announcements') fetchAnnouncements();
+                if(type === 'tasks') fetchTasks();
+                if(type === 'meetings') fetchMeetings();
+                if(type === 'attendance') fetchAttendance();
+                if(type === 'notices') fetchNotices();
+            }
+        }
+    };
+    
+    if(editForm) {
+        editForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const type = document.getElementById('edit-type').value;
+            const title = document.getElementById('edit-title').value;
+            const content = document.getElementById('edit-content').value;
+            
+            const payload = { title };
+            if (content) payload.content = content;
+            // Also map content to description/agenda if needed for tasks/meetings
+            if (type === 'tasks') payload.description = content;
+            if (type === 'meetings') payload.agenda = content;
+            
+            const res = await apiRequest('/api/' + type + '/' + id, 'PUT', payload);
+            if(res) {
+                showToast('Updated successfully!', 'success');
+                editModal.style.display = 'none';
+                if(type === 'circulars') fetchCirculars();
+                if(type === 'announcements') fetchAnnouncements();
+                if(type === 'tasks') fetchTasks();
+                if(type === 'meetings') fetchMeetings();
+                if(type === 'attendance') fetchAttendance();
+                if(type === 'notices') fetchNotices();
+            }
+        };
+    }
+    
+    function generateActionButtons(id, type, title, content) {
+        const userRole = JSON.parse(localStorage.getItem('intrasphere_user') || '{}').role;
+        const canManage = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'].includes(userRole);
+        if(!canManage) return '';
+        
+        return `
+            <div style="margin-top: 5px;">
+                <button onclick="openEditModal(${id}, '${type}', '${title.replace(/'/g, "\'")}', '${(content || '').replace(/'/g, "\'").replace(/\n/g, " ")}')" style="background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.8rem; margin-right:10px;"><i class="fa-solid fa-edit"></i> Edit</button>
+                <button onclick="deleteItem(${id}, '${type}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:0.8rem;"><i class="fa-solid fa-trash"></i> Delete</button>
+            </div>
+        `;
+    }
+
     function initPortal(user) {
+        updateFormPermissions();
+
         // Switch Views
         if(loginView) loginView.classList.remove('active-view');
         if(portalView) portalView.classList.add('active-view');
@@ -271,29 +385,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Forms handling
+    
     const setupForm = (formId, url, successMsg, callback) => {
         const form = document.getElementById(formId);
         if (form) {
-            const userRole = JSON.parse(localStorage.getItem('intrasphere_user') || '{}').role;
-            const allowedRoles = {
-                'circular-form': ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'],
-                'announcement-form': ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'],
-                'task-form': ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'],
-                'meeting-form': ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'],
-                'attendance-form': ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin'],
-                'notice-form': ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access']
-            };
+            /* Handled dynamically by updateFormPermissions */
 
-            const canAccess = allowedRoles[formId] ? allowedRoles[formId].includes(userRole) : true;
-            if (!canAccess) {
-                form.style.display = 'none';
-                const msgId = formId.split('-')[0] + '-unauth-msg';
-                const msgEl = document.getElementById(msgId);
-                if (msgEl) msgEl.style.display = 'block';
-                return;
-            } else {
-                if (formId === 'attendance-form') form.style.display = 'block';
-            }
 
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();
@@ -347,12 +444,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    setupForm('circular-form', '/api/circulars', 'Circular published successfully!', fetchCirculars);
-    setupForm('announcement-form', '/api/announcements', 'Announcement broadcasted!', fetchAnnouncements);
-    setupForm('task-form', '/api/tasks', 'Task assigned successfully!', fetchTasks);
-    setupForm('meeting-form', '/api/meetings', 'Meeting scheduled successfully!', fetchMeetings);
-    setupForm('attendance-form', '/api/attendance', 'Attendance marked!', fetchAttendance);
-    setupForm('notice-form', '/api/notices', 'Notice issued successfully!', fetchNotices);
+    
 
     // List fetching logic
     async function fetchCirculars() {
@@ -363,7 +455,7 @@ document.addEventListener('DOMContentLoaded', () => {
             list.innerHTML = data.length === 0 ? '<li>No active circulars.</li>' : data.map(c => `
                 <li style="display:flex; flex-direction:column; gap:5px;">
                     <div style="display:flex; justify-content:space-between;">
-                        <strong>${c.title}</strong>
+                        <strong>${c.title}</strong>${generateActionButtons(c.id, 'circulars', c.title, c.content)}
                         <span class="tag tag-internal">${c.priority}</span>
                     </div>
                     <p style="color:var(--text-muted); font-size:0.8rem;">${c.content}</p>
@@ -381,7 +473,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const html = data.length === 0 ? '<li>No active announcements.</li>' : data.map(a => `
                 <li style="margin-bottom:10px;">
                     <span class="tag ${a.type === 'Emergency' ? 'tag-emergency' : 'tag-internal'}">${a.type}</span> 
-                    <strong>${a.title}</strong>
+                    <strong>${a.title}</strong>${generateActionButtons(a.id, 'announcements', a.title, a.content)}
                     <p style="font-size:0.8rem; margin-top:5px; color:var(--text-muted);">${a.content}</p>
                 </li>
             `).join('');
@@ -403,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
             list.innerHTML = data.length === 0 ? '<li>No tasks found.</li>' : data.map(t => `
                 <li style="display:flex; flex-direction:column; gap:5px;">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
-                        <strong>${t.title}</strong>
+                        <strong>${t.title}</strong>${generateActionButtons(t.id, 'tasks', t.title, t.description)}
                         <div>
                             <span class="tag tag-internal">${t.status}</span>
                             ${canUpdateTask ? `<button class="btn-primary toggle-task" data-id="${t.id}" data-status="${t.status === 'Completed' ? 'Pending' : 'Completed'}" style="padding: 4px 8px; font-size: 0.7rem; margin-left: 10px;">Mark ${t.status === 'Completed' ? 'Pending' : 'Completed'}</button>` : ''}
@@ -437,7 +529,7 @@ document.addEventListener('DOMContentLoaded', () => {
             list.innerHTML = data.length === 0 ? '<li>No upcoming meetings.</li>' : data.map(m => `
                 <li style="display:flex; justify-content:space-between; align-items:center;">
                     <div>
-                        <strong>${m.title}</strong>
+                        <strong>${m.title}</strong>${generateActionButtons(m.id, 'meetings', m.title, m.agenda)}
                         <p style="color:var(--text-muted); font-size:0.8rem;">${new Date(m.datetime).toLocaleString()}</p>
                     </div>
                     ${m.meeting_link ? `<a href="${m.meeting_link}" target="_blank" class="btn-primary" style="padding: 6px 12px; font-size:0.8rem; text-decoration:none; border-radius:6px; display:inline-block;"><i class="fa-solid fa-video"></i> Join Now</a>` : ''}
@@ -468,13 +560,13 @@ document.addEventListener('DOMContentLoaded', () => {
             const userStr = localStorage.getItem('intrasphere_user');
             if(!userStr) return;
             const userRole = JSON.parse(userStr).role;
-            const canManage = ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'].includes(userRole);
+            const canManage = ['CEO', 'COO', 'HR Admin', 'Master Administrative Access'].includes(userRole);
 
             list.innerHTML = data.length === 0 ? '<li>No active notices.</li>' : data.map(n => `
                 <li style="display:flex; flex-direction:column; gap:8px;">
                     <div style="display:flex; justify-content:space-between; align-items:flex-start;">
                         <div>
-                            <strong>${n.title}</strong> <span style="color:var(--text-muted); font-size:0.75rem;">(${n.reference_number})</span>
+                            <strong>${n.title}</strong>${generateActionButtons(n.id, 'notices', n.title, n.content)} <span style="color:var(--text-muted); font-size:0.75rem;">(${n.reference_number})</span>
                             <p style="color:var(--text-muted); font-size:0.8rem; margin-top:2px;">${n.content}</p>
                             <small style="color:var(--danger); display:block; margin-top:2px;">Issued to: ${n.issued_to_name}</small>
                         </div>
