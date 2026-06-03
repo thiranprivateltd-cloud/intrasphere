@@ -1,428 +1,220 @@
-const express = require('express');
-const cors = require('cors');
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const path = require('path');
-const supabase = require('./database'); // This is now Supabase client
-const webpush = require('web-push');
-const app = express();
-const PORT = process.env.PORT || 4000;
-const JWT_SECRET = 'intrasphere-super-secret-key';
-// Setup web-push
-const publicVapidKey = 'BEl62iUYgUivxIkv69yViEuiBIa-Ib9-SkvMeAtA3LFgDzkrxZJjSgSnfckjBJuBkr3qBUYIHBQFL8eI5RoAlJI';
-const privateVapidKey = '_r1-L8QpWqT6bUjE6Gf-_zYvR4pZ6B_wLw-Qf2_mXxw';
-webpush.setVapidDetails('mailto:admin@intrasphere.com', publicVapidKey, privateVapidKey);
-// Notification Helper
-async function notifyUsers(supabase, userIds, title, body, url = '/') {
-    let query = supabase.from('users').select('push_subscription').not('push_subscription', 'is', null);
-    
-    if (userIds && userIds.length > 0) {
-        query = query.in('id', userIds);
-    }
-    
-    const { data: rows, error } = await query;
-    
-    if (error || !rows) return;
-    
-    const payload = JSON.stringify({ title, body, icon: '/icons/intrasphere-logo.png', url });
-    rows.forEach(row => {
-        try {
-            const sub = JSON.parse(row.push_subscription);
-            webpush.sendNotification(sub, payload).catch(e => console.error("Push Error", e));
-        } catch(e) {}
-    });
-}
-// Path Detection Logic
 const fs = require('fs');
-const publicPath = path.resolve(__dirname, 'public');
-const rootPath = __dirname;
-const servePath = fs.existsSync(publicPath) ? publicPath : rootPath;
-app.use(cors());
-app.use(express.json());
-// If files are in root (GitHub), map common paths
-if (servePath === rootPath) {
-    app.get('/js/main.js', (req, res) => res.sendFile(path.join(rootPath, 'main.js')));
-    app.get('/css/style.css', (req, res) => res.sendFile(path.join(rootPath, 'style.css')));
+let code = fs.readFileSync('public/index.html', 'utf8');
+const modalHTML = `
+<!-- Edit Modal -->
+<div id="edit-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center;">
+    <div class="glass-card" style="width: 90%; max-width: 500px; padding: 2rem; position: relative;">
+        <button id="close-modal" style="position: absolute; top: 10px; right: 15px; background: none; border: none; color: white; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        <h3 id="edit-modal-title">Edit Item</h3>
+        <form id="edit-form">
+            <input type="hidden" id="edit-id">
+            <input type="hidden" id="edit-type">
+            <div class="input-group">
+                <label>Title</label>
+                <input type="text" id="edit-title" required>
+            </div>
+            <div class="input-group" id="edit-content-group">
+                <label>Content</label>
+                <textarea id="edit-content" rows="4" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; color: var(--text-main);"></textarea>
+            </div>
+            <button type="submit" class="btn-primary" style="width: 100%; margin-top: 1rem;">Save Changes</button>
+        </form>
+    </div>
+</div>
+`;
+// Insert modal right before </body>
+if (!code.includes('id="edit-modal"')) {
+    code = code.replace('</body>', modalHTML + '\n</body>');
 }
-app.use(express.static(servePath));
-// Login Endpoint
-app.post('/api/login', async (req, res) => {
-    const { employee_id, password } = req.body;
+const outPath = 'C:\\\\Users\\\\gsvar\\\\.gemini\\\\antigravity\\\\brain\\\\4b0ee267-f616-439f-88dd-2d7e551aefa6\\\\index.html';
+fs.writeFileSync(outPath, code);
+console.log('index.html updated!');
+const fs = require('fs');
+let code = fs.readFileSync('public/js/main.js', 'utf8');
+const adminRoleString = "['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin']";
+const crudLogic = `
+    // --- CRUD Edit/Delete Logic ---
+    const editModal = document.getElementById('edit-modal');
+    const closeBtn = document.getElementById('close-modal');
+    const editForm = document.getElementById('edit-form');
     
-    const { data: user, error } = await supabase
-        .from('users')
-        .select('*')
-        .eq('employee_id', employee_id)
-        .single();
-        
-    if (error || !user) return res.status(401).json({ error: "Invalid credentials" });
-    const passwordIsValid = bcrypt.compareSync(password, user.password);
-    if (!passwordIsValid) return res.status(401).json({ error: "Invalid credentials" });
-    const token = jwt.sign({ id: user.id, department: user.department, role: user.role, name: user.name }, JWT_SECRET, {
-        expiresIn: 86400 // 24 hours
-    });
-    res.status(200).json({
-        auth: true,
-        token: token,
-        user: {
-            name: user.name,
-            employee_id: user.employee_id,
-            department: user.department,
-            role: user.role
+    if(closeBtn) closeBtn.onclick = () => editModal.style.display = 'none';
+    
+    window.openEditModal = (id, type, title, content) => {
+        document.getElementById('edit-id').value = id;
+        document.getElementById('edit-type').value = type;
+        document.getElementById('edit-title').value = title;
+        if(content) {
+            document.getElementById('edit-content').value = content;
+            document.getElementById('edit-content-group').style.display = 'block';
+        } else {
+            document.getElementById('edit-content').value = '';
+            document.getElementById('edit-content-group').style.display = 'none';
         }
-    });
-});
-// Middleware to verify token
-const verifyToken = (req, res, next) => {
-    const token = req.headers['x-access-token'];
-    if (!token) return res.status(403).json({ auth: false, message: 'No token provided.' });
+        editModal.style.display = 'flex';
+    };
     
-    jwt.verify(token, JWT_SECRET, (err, decoded) => {
-        if (err) return res.status(500).json({ auth: false, message: 'Failed to authenticate token.' });
-        req.userId = decoded.id;
-        req.userDept = decoded.department;
-        req.userRole = decoded.role;
-        next();
-    });
-};
-// API: Get Current User Profile
-app.get('/api/profile', verifyToken, async (req, res) => {
-    const { data: user, error } = await supabase
-        .from('users')
-        .select('id, name, role, department, employee_id')
-        .eq('id', req.userId)
-        .single();
-        
-    if (error || !user) return res.status(500).json({ error: "User not found" });
-    res.status(200).json(user);
-});
-// API: Save Push Subscription
-app.post('/api/subscribe', verifyToken, async (req, res) => {
-    const subscription = req.body;
-    const { error } = await supabase
-        .from('users')
-        .update({ push_subscription: JSON.stringify(subscription) })
-        .eq('id', req.userId);
-        
-    if(error) return res.status(500).json({ error: error.message });
-    res.status(201).json({});
-});
-// API: Get Dashboard Stats
-app.get('/api/dashboard', verifyToken, async (req, res) => {
-    const [{ count: activeCirculars }, { count: upcomingMeetings }, { count: pendingTasks }, { count: recentNotices }] = await Promise.all([
-        supabase.from('circulars').select('*', { count: 'exact', head: true }),
-        supabase.from('meetings').select('*', { count: 'exact', head: true }),
-        supabase.from('tasks').select('*', { count: 'exact', head: true }).neq('status', 'Completed'),
-        supabase.from('notices').select('*', { count: 'exact', head: true }).eq('status', 'Active')
-    ]);
+    window.deleteItem = async (id, type) => {
+        if(confirm('Are you sure you want to delete this item?')) {
+            const res = await apiRequest('/api/' + type + '/' + id, 'DELETE');
+            if(res) {
+                showToast('Deleted successfully!', 'success');
+                if(type === 'circulars') fetchCirculars();
+                if(type === 'announcements') fetchAnnouncements();
+                if(type === 'tasks') fetchTasks();
+                if(type === 'meetings') fetchMeetings();
+                if(type === 'attendance') fetchAttendance();
+                if(type === 'notices') fetchNotices();
+            }
+        }
+    };
     
-    res.status(200).json({ activeCirculars, upcomingMeetings, pendingTasks, recentNotices });
-});
-// API: Get Profile Analytics
-app.get('/api/profile/analytics', verifyToken, async (req, res) => {
-    const userId = req.userId;
+    if(editForm) {
+        editForm.onsubmit = async (e) => {
+            e.preventDefault();
+            const id = document.getElementById('edit-id').value;
+            const type = document.getElementById('edit-type').value;
+            const title = document.getElementById('edit-title').value;
+            const content = document.getElementById('edit-content').value;
+            
+            const payload = { title };
+            if (content) payload.content = content;
+            // Also map content to description/agenda if needed for tasks/meetings
+            if (type === 'tasks') payload.description = content;
+            if (type === 'meetings') payload.agenda = content;
+            
+            const res = await apiRequest('/api/' + type + '/' + id, 'PUT', payload);
+            if(res) {
+                showToast('Updated successfully!', 'success');
+                editModal.style.display = 'none';
+                if(type === 'circulars') fetchCirculars();
+                if(type === 'announcements') fetchAnnouncements();
+                if(type === 'tasks') fetchTasks();
+                if(type === 'meetings') fetchMeetings();
+                if(type === 'attendance') fetchAttendance();
+                if(type === 'notices') fetchNotices();
+            }
+        };
+    }
     
-    const [{ count: total_tasks }, { count: completed_tasks }, { count: active_notices }, { count: days_present }] = await Promise.all([
-        supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('assigned_to', userId),
-        supabase.from('tasks').select('*', { count: 'exact', head: true }).eq('assigned_to', userId).eq('status', 'Completed'),
-        supabase.from('notices').select('*', { count: 'exact', head: true }).eq('issued_to', userId),
-        supabase.from('attendance').select('*', { count: 'exact', head: true }).eq('user_id', userId)
-    ]);
+    function generateActionButtons(id, type, title, content) {
+        const userRole = JSON.parse(localStorage.getItem('intrasphere_user') || '{}').role;
+        const canManage = ${adminRoleString}.includes(userRole);
+        if(!canManage) return '';
+        
+        return \`
+            <div style="margin-top: 5px;">
+                <button onclick="openEditModal(\${id}, '\${type}', '\${title.replace(/'/g, "\\'")}', '\${(content || '').replace(/'/g, "\\'").replace(/\\n/g, " ")}')" style="background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.8rem; margin-right:10px;"><i class="fa-solid fa-edit"></i> Edit</button>
+                <button onclick="deleteItem(\${id}, '\${type}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:0.8rem;"><i class="fa-solid fa-trash"></i> Delete</button>
+            </div>
+        \`;
+    }
+`;
+// Remove original setupForm declarations since we make it dynamic
+code = code.replace(/const setupForm = [\s\S]*?if \(formId === 'attendance-form'\) form\.style\.display = 'block';\s+\}/, `
+    const setupForm = (formId, url, successMsg, callback) => {
+        const form = document.getElementById(formId);
+        if (form) {
+            /* Handled dynamically by updateFormPermissions */
+`);
+// Add the update permissions logic and CRUD inside initPortal
+code = code.replace('function initPortal(user) {', `
+    function updateFormPermissions() {
+        const userRole = JSON.parse(localStorage.getItem('intrasphere_user') || '{}').role;
+        const allowedRoles = {
+            'circular-form': ${adminRoleString},
+            'announcement-form': ${adminRoleString},
+            'task-form': ${adminRoleString},
+            'meeting-form': ${adminRoleString},
+            'attendance-form': ${adminRoleString},
+            'notice-form': ${adminRoleString}
+        };
+        Object.keys(allowedRoles).forEach(formId => {
+            const form = document.getElementById(formId);
+            if(form) {
+                const canAccess = allowedRoles[formId].includes(userRole);
+                let msgId = formId.split('-')[0] + '-unauth-msg';
+                if (formId === 'circular-form') msgId = 'circ-unauth-msg';
+                if (formId === 'announcement-form') msgId = 'ann-unauth-msg';
+                if (formId === 'meeting-form') msgId = 'meet-unauth-msg';
+                if (formId === 'attendance-form') msgId = 'att-unauth-msg';
+                const msgEl = document.getElementById(msgId);
+                if (!canAccess) {
+                    form.style.display = 'none';
+                    if (msgEl) msgEl.style.display = 'block';
+                } else {
+                    form.style.display = 'block';
+                    if (msgEl) msgEl.style.display = 'none';
+                }
+            }
+        });
+        
+        // Ensure setupForm hooks are re-initialized or bound
+        setupForm('circular-form', '/api/circulars', 'Circular published successfully!', fetchCirculars);
+        setupForm('announcement-form', '/api/announcements', 'Announcement broadcasted!', fetchAnnouncements);
+        setupForm('task-form', '/api/tasks', 'Task assigned successfully!', fetchTasks);
+        setupForm('meeting-form', '/api/meetings', 'Meeting scheduled successfully!', fetchMeetings);
+        setupForm('attendance-form', '/api/attendance', 'Attendance marked!', fetchAttendance);
+        setupForm('notice-form', '/api/notices', 'Notice issued successfully!', fetchNotices);
+    }
+${crudLogic}
+    function initPortal(user) {
+        updateFormPermissions();
+`);
+// Remove old global setupForm calls
+const setupRegex = /setupForm\('circular-form'[\s\S]*?fetchNotices\);/g;
+code = code.replace(setupRegex, '');
+// Inject action buttons into HTML map generators
+code = code.replace(/<strong>\$\{c\.title\}<\/strong>/, `<strong>\${c.title}</strong>\${generateActionButtons(c.id, 'circulars', c.title, c.content)}`);
+code = code.replace(/<strong>\$\{a\.title\}<\/strong>/, `<strong>\${a.title}</strong>\${generateActionButtons(a.id, 'announcements', a.title, a.content)}`);
+code = code.replace(/<strong>\$\{t\.title\}<\/strong>/, `<strong>\${t.title}</strong>\${generateActionButtons(t.id, 'tasks', t.title, t.description)}`);
+code = code.replace(/<strong>\$\{m\.title\}<\/strong>/, `<strong>\${m.title}</strong>\${generateActionButtons(m.id, 'meetings', m.title, m.agenda)}`);
+code = code.replace(/<strong>\$\{n\.title\}<\/strong>/, `<strong>\${n.title}</strong>\${generateActionButtons(n.id, 'notices', n.title, n.content)}`);
+// Save updated main.js
+const outPath = 'C:\\\\Users\\\\gsvar\\\\.gemini\\\\antigravity\\\\brain\\\\4b0ee267-f616-439f-88dd-2d7e551aefa6\\\\main.js';
+fs.writeFileSync(outPath, code);
+console.log('main.js updated!');
+const fs = require('fs');
+const path = require('path');
+let code = fs.readFileSync('server.js', 'utf8');
+// Standardize permissions
+const adminRoleString = "['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin']";
+code = code.replace(/const allowedRoles = \[.*?\];/g, `const allowedRoles = ${adminRoleString};`);
+code = code.replace(/const adminRoles = \[.*?\];/g, `const adminRoles = ${adminRoleString};`);
+// Function to inject DELETE and PUT routes after POST routes
+function injectRoutes(code, moduleName, tableName) {
+    const postRouteRegex = new RegExp(`app\\.post\\('/api/${moduleName}',.*?res\\.json\\(data\\);\\s*\\}\\);`, 's');
+    const match = code.match(postRouteRegex);
     
-    res.status(200).json({ total_tasks, completed_tasks, active_notices, days_present });
-});
-// --- API Endpoints for Modules ---
-// Users (for dropdowns)
-app.get('/api/users', verifyToken, async (req, res) => {
-    const { data: rows, error } = await supabase
-        .from('users')
-        .select('id, name, department, role');
-        
-    if (error) return res.status(500).json({ error: "Database error" });
-    res.json(rows);
-});
-// Circulars
-app.get('/api/circulars', verifyToken, async (req, res) => {
-    const { data: rows, error } = await supabase
-        .from('circulars')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
+    if (match) {
+        const routes = `
+app.put('/api/${moduleName}/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ${adminRoleString};
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('${tableName}').update(req.body).eq('id', req.params.id);
     if (error) return res.status(500).json({ error: error.message });
-    res.json(rows);
-});
-app.post('/api/circulars', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
-    if (!allowedRoles.includes(req.userRole)) {
-        return res.status(403).json({ error: "Unauthorized. Only specific executives can publish circulars." });
-    }
-    const { title, content, category, priority, departments } = req.body;
-    
-    const { data, error } = await supabase
-        .from('circulars')
-        .insert([{ title, content, category, priority, departments, created_by: req.userId }])
-        .select()
-        .single();
-        
-    if (error) {
-        console.error("Circular Creation Error:", error);
-        return res.status(500).json({ error: "Failed to save circular. " + error.message });
-    }
-    
-    notifyUsers(supabase, null, `New Circular: ${title}`, content.substring(0, 50) + "...");
-    res.json(data);
-});
-// Announcements
-app.get('/api/announcements', verifyToken, async (req, res) => {
-    const { data: rows, error } = await supabase
-        .from('announcements')
-        .select('*')
-        .order('created_at', { ascending: false });
-        
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(rows || []);
-});
-app.post('/api/announcements', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
-    if (!allowedRoles.includes(req.userRole)) {
-        return res.status(403).json({ error: "Unauthorized. Only specific executives can broadcast announcements." });
-    }
-    const { title, content, type } = req.body;
-    
-    const { data, error } = await supabase
-        .from('announcements')
-        .insert([{ title, content, type, created_by: req.userId }])
-        .select()
-        .single();
-        
-    if (error) {
-        console.error("Announcement Creation Error:", error);
-        return res.status(500).json({ error: "Failed to broadcast announcement. " + error.message });
-    }
-    
-    notifyUsers(supabase, null, `Announcement: ${title}`, content.substring(0, 50) + "...");
-    res.json(data);
-});
-// Tasks
-app.get('/api/tasks', verifyToken, async (req, res) => {
-    const { data: rows, error } = await supabase
-        .from('tasks')
-        .select('*, users:assigned_to(name)')
-        .order('deadline', { ascending: true });
-        
-    if (error) return res.status(500).json({ error: error.message });
-    
-    const formattedRows = rows.map(row => ({
-        ...row,
-        assigned_name: row.users?.name,
-        users: undefined
-    }));
-    
-    res.json(formattedRows);
-});
-app.post('/api/tasks', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
-    if (!allowedRoles.includes(req.userRole)) {
-        return res.status(403).json({ error: "Unauthorized. Only specific executives can assign tasks." });
-    }
-    const { title, description, deadline, assigned_to } = req.body;
-    
-    const { data, error } = await supabase
-        .from('tasks')
-        .insert([{ title, description, deadline, assigned_to, created_by: req.userId, status: 'Pending' }])
-        .select()
-        .single();
-        
-    if (error) {
-        console.error("Task Assignment Error:", error);
-        return res.status(500).json({ error: "Failed to assign task. " + error.message });
-    }
-    
-    notifyUsers(supabase, [assigned_to], `New Task Assigned`, `You have a new task: ${title}`);
-    res.json(data);
-});
-app.put('/api/tasks/:id/status', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead'];
-    if (!allowedRoles.includes(req.userRole)) {
-        return res.status(403).json({ error: "Unauthorized. Only CEO, COO, or PM can update task status." });
-    }
-    
-    const { status } = req.body;
-    const { error } = await supabase
-        .from('tasks')
-        .update({ status })
-        .eq('id', req.params.id);
-        
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true, status });
-});
-// Meetings
-app.get('/api/meetings', verifyToken, async (req, res) => {
-    const { data: rows, error } = await supabase
-        .from('meetings')
-        .select('*')
-        .order('datetime', { ascending: true });
-        
-    if (error) return res.status(500).json({ error: error.message });
-    res.json(rows || []);
-});
-app.post('/api/meetings', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
-    if (!allowedRoles.includes(req.userRole)) {
-        return res.status(403).json({ error: "Unauthorized. Only specific executives can schedule meetings." });
-    }
-    const { title, agenda, datetime, departments, meeting_link } = req.body;
-    
-    const { data, error } = await supabase
-        .from('meetings')
-        .insert([{ title, agenda, datetime, departments, meeting_link, created_by: req.userId }])
-        .select()
-        .single();
-        
-    if (error) {
-        console.error("Meeting Scheduling Error:", error);
-        return res.status(500).json({ error: "Failed to schedule meeting. " + error.message });
-    }
-    
-    notifyUsers(supabase, null, `Meeting Scheduled: ${title}`, `Scheduled for ${new Date(datetime).toLocaleString()}`);
-    res.json(data);
-});
-// Attendance
-app.get('/api/attendance', verifyToken, async (req, res) => {
-    const { data: rows, error } = await supabase
-        .from('attendance')
-        .select('*, users:user_id(name)')
-        .order('date', { ascending: false });
-        
-    if (error) return res.status(500).json({ error: error.message });
-    
-    const formattedRows = rows.map(row => ({
-        ...row,
-        name: row.users?.name,
-        users: undefined
-    }));
-    
-    res.json(formattedRows);
-});
-app.post('/api/attendance', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin'];
-    if (!allowedRoles.includes(req.userRole)) {
-        return res.status(403).json({ error: "Unauthorized. Only CEO, COO, or HR can mark attendance." });
-    }
-    const { status, target_user_id, target_date } = req.body;
-    const date = target_date || new Date().toISOString().split('T')[0];
-    const check_in_time = new Date().toISOString();
-    
-    const { data: existing, error: findError } = await supabase
-        .from('attendance')
-        .select('id')
-        .eq('user_id', target_user_id)
-        .eq('date', date)
-        .single();
-        
-    if (existing) return res.status(400).json({ error: "Attendance already marked for this user on this day." });
-    
-    const { data, error } = await supabase
-        .from('attendance')
-        .insert([{ user_id: target_user_id, date, status, check_in_time }])
-        .select()
-        .single();
-        
-    if (error) {
-        console.error("Attendance Marking Error:", error);
-        return res.status(500).json({ error: "Failed to mark attendance. " + error.message });
-    }
-    res.json(data);
-});
-// Notices
-app.get('/api/notices', verifyToken, async (req, res) => {
-    const adminRoles = ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
-    
-    let query = supabase
-        .from('notices')
-        .select('*, users:issued_to(name)')
-        .order('created_at', { ascending: false });
-        
-    if (!adminRoles.includes(req.userRole)) {
-        query = query.eq('issued_to', req.userId);
-    }
-    
-    const { data: rows, error } = await query;
-    if (error) return res.status(500).json({ error: error.message });
-    
-    const formattedRows = rows.map(row => ({
-        ...row,
-        issued_to_name: row.users?.name,
-        users: undefined
-    }));
-    
-    res.json(formattedRows);
-});
-app.post('/api/notices', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
-    if (!allowedRoles.includes(req.userRole)) {
-        return res.status(403).json({ error: "Unauthorized. Only specific executives can issue notices." });
-    }
-    const { title, content, issued_to } = req.body;
-    const refNum = `NT-${new Date().toISOString().split('T')[0].replace(/-/g, '')}-${Math.floor(1000 + Math.random() * 9000)}`;
-    
-    const { data, error } = await supabase
-        .from('notices')
-        .insert([{ reference_number: refNum, title, content, issued_to, created_by: req.userId, status: 'Active' }])
-        .select()
-        .single();
-        
-    if (error) {
-        console.error("Notice Issuance Error:", error);
-        return res.status(500).json({ error: "Failed to issue notice. " + error.message });
-    }
-    
-    notifyUsers(supabase, [issued_to], `Official Notice Issued`, `Ref: ${refNum} - ${title}`);
-    res.json(data);
-});
-app.put('/api/notices/:id/status', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
-    if (!allowedRoles.includes(req.userRole)) {
-        return res.status(403).json({ error: "Unauthorized." });
-    }
-    const { status } = req.body;
-    const { error } = await supabase
-        .from('notices')
-        .update({ status })
-        .eq('id', req.params.id);
-        
-    if (error) return res.status(500).json({ error: error.message });
-    res.json({ success: true, status });
-});
-app.put('/api/notices/:id/response', verifyToken, async (req, res) => {
-    const { response } = req.body;
-    
-    const { data, error } = await supabase
-        .from('notices')
-        .update({ employee_response: response, status: 'Pending Review' })
-        .eq('id', req.params.id)
-        .eq('issued_to', req.userId)
-        .select();
-        
-    if (error) return res.status(500).json({ error: error.message });
-    if (!data || data.length === 0) return res.status(403).json({ error: "Unauthorized or notice not found." });
-    
     res.json({ success: true });
 });
-// Serve frontend application for all other routes
-app.get('*', (req, res) => {
-    const indexPath = path.resolve(servePath, 'index.html');
-    if (!fs.existsSync(indexPath)) {
-        console.error("CRITICAL ERROR: index.html not found at", indexPath);
-        return res.status(404).send("Frontend files missing. Please ensure index.html is in the root or public folder.");
-    }
-    res.sendFile(indexPath);
+app.delete('/api/${moduleName}/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ${adminRoleString};
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('${tableName}').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
 });
-if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log(`INTRASPHERE System Online: Port ${PORT}`);
-        console.log(`Workspace Status: ACTIVE`);
-        console.log(`Internal Monitoring: ENABLED`);
-    });
+`;
+        code = code.replace(match[0], match[0] + '\n' + routes);
+    }
+    return code;
 }
-module.exports = app;
+code = injectRoutes(code, 'circulars', 'circulars');
+code = injectRoutes(code, 'announcements', 'announcements');
+code = injectRoutes(code, 'tasks', 'tasks');
+code = injectRoutes(code, 'meetings', 'meetings');
+code = injectRoutes(code, 'attendance', 'attendance');
+code = injectRoutes(code, 'notices', 'notices');
+const outPath = 'C:\\\\Users\\\\gsvar\\\\.gemini\\\\antigravity\\\\brain\\\\4b0ee267-f616-439f-88dd-2d7e551aefa6\\\\server.js';
+fs.writeFileSync(outPath, code);
+console.log('Server updated!');
