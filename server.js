@@ -152,7 +152,7 @@ app.get('/api/circulars', verifyToken, async (req, res) => {
     res.json(rows);
 });
 app.post('/api/circulars', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) {
         return res.status(403).json({ error: "Unauthorized. Only specific executives can publish circulars." });
     }
@@ -172,6 +172,25 @@ app.post('/api/circulars', verifyToken, async (req, res) => {
     notifyUsers(supabase, null, `New Circular: ${title}`, content.substring(0, 50) + "...");
     res.json(data);
 });
+
+app.put('/api/circulars/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('circulars').update(req.body).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
+app.delete('/api/circulars/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('circulars').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
 // Announcements
 app.get('/api/announcements', verifyToken, async (req, res) => {
     const { data: rows, error } = await supabase
@@ -183,7 +202,7 @@ app.get('/api/announcements', verifyToken, async (req, res) => {
     res.json(rows || []);
 });
 app.post('/api/announcements', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) {
         return res.status(403).json({ error: "Unauthorized. Only specific executives can broadcast announcements." });
     }
@@ -203,6 +222,25 @@ app.post('/api/announcements', verifyToken, async (req, res) => {
     notifyUsers(supabase, null, `Announcement: ${title}`, content.substring(0, 50) + "...");
     res.json(data);
 });
+
+app.put('/api/announcements/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('announcements').update(req.body).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
+app.delete('/api/announcements/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('announcements').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
 // Tasks
 app.get('/api/tasks', verifyToken, async (req, res) => {
     const { data: rows, error } = await supabase
@@ -221,7 +259,7 @@ app.get('/api/tasks', verifyToken, async (req, res) => {
     res.json(formattedRows);
 });
 app.post('/api/tasks', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) {
         return res.status(403).json({ error: "Unauthorized. Only specific executives can assign tasks." });
     }
@@ -241,8 +279,27 @@ app.post('/api/tasks', verifyToken, async (req, res) => {
     notifyUsers(supabase, [assigned_to], `New Task Assigned`, `You have a new task: ${title}`);
     res.json(data);
 });
+
+app.put('/api/tasks/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('tasks').update(req.body).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
+app.delete('/api/tasks/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('tasks').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
 app.put('/api/tasks/:id/status', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead'];
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) {
         return res.status(403).json({ error: "Unauthorized. Only CEO, COO, or PM can update task status." });
     }
@@ -267,7 +324,7 @@ app.get('/api/meetings', verifyToken, async (req, res) => {
     res.json(rows || []);
 });
 app.post('/api/meetings', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) {
         return res.status(403).json({ error: "Unauthorized. Only specific executives can schedule meetings." });
     }
@@ -287,6 +344,25 @@ app.post('/api/meetings', verifyToken, async (req, res) => {
     notifyUsers(supabase, null, `Meeting Scheduled: ${title}`, `Scheduled for ${new Date(datetime).toLocaleString()}`);
     res.json(data);
 });
+
+app.put('/api/meetings/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('meetings').update(req.body).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
+app.delete('/api/meetings/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('meetings').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
 // Attendance
 app.get('/api/attendance', verifyToken, async (req, res) => {
     const { data: rows, error } = await supabase
@@ -305,7 +381,7 @@ app.get('/api/attendance', verifyToken, async (req, res) => {
     res.json(formattedRows);
 });
 app.post('/api/attendance', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin'];
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) {
         return res.status(403).json({ error: "Unauthorized. Only CEO, COO, or HR can mark attendance." });
     }
@@ -334,9 +410,28 @@ app.post('/api/attendance', verifyToken, async (req, res) => {
     }
     res.json(data);
 });
+
+app.put('/api/attendance/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('attendance').update(req.body).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
+app.delete('/api/attendance/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('attendance').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
 // Notices
 app.get('/api/notices', verifyToken, async (req, res) => {
-    const adminRoles = ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
+    const adminRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     
     let query = supabase
         .from('notices')
@@ -359,7 +454,7 @@ app.get('/api/notices', verifyToken, async (req, res) => {
     res.json(formattedRows);
 });
 app.post('/api/notices', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) {
         return res.status(403).json({ error: "Unauthorized. Only specific executives can issue notices." });
     }
@@ -380,8 +475,27 @@ app.post('/api/notices', verifyToken, async (req, res) => {
     notifyUsers(supabase, [issued_to], `Official Notice Issued`, `Ref: ${refNum} - ${title}`);
     res.json(data);
 });
+
+app.put('/api/notices/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('notices').update(req.body).eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
+app.delete('/api/notices/:id', verifyToken, async (req, res) => {
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
+    if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
+    
+    const { error } = await supabase.from('notices').delete().eq('id', req.params.id);
+    if (error) return res.status(500).json({ error: error.message });
+    res.json({ success: true });
+});
+
 app.put('/api/notices/:id/status', verifyToken, async (req, res) => {
-    const allowedRoles = ['CEO', 'COO', 'Administration Head, Student Community Manager & HR Admin', 'Master Administrative Access'];
+    const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) {
         return res.status(403).json({ error: "Unauthorized." });
     }
