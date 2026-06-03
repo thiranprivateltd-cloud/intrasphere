@@ -386,7 +386,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Forms handling
     
-    const setupForm = (formId, url, successMsg, callback) => {
+    function setupForm(formId, url, successMsg, callback) {
         const form = document.getElementById(formId);
         if (form) {
             /* Handled dynamically by updateFormPermissions */
@@ -699,4 +699,5 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 });
+
 
