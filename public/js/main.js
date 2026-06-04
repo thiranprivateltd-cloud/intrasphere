@@ -119,8 +119,13 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Ensure setupForm hooks are re-initialized or bound
         
+        setupForm('circular-form', '/api/circulars', 'Circular published successfully!', fetchCirculars);
+        setupForm('announcement-form', '/api/announcements', 'Announcement broadcasted!', fetchAnnouncements);
+        setupForm('task-form', '/api/tasks', 'Task assigned successfully!', fetchTasks);
+        setupForm('meeting-form', '/api/meetings', 'Meeting scheduled successfully!', fetchMeetings);
+        setupForm('attendance-form', '/api/attendance', 'Attendance marked successfully!', fetchAttendance);
+        setupForm('notice-form', '/api/notices', 'Notice issued successfully!', fetchNotices);
     }
-
     // --- CRUD Edit/Delete Logic ---
     const editModal = document.getElementById('edit-modal');
     const closeBtn = document.getElementById('close-modal');
@@ -190,14 +195,17 @@ document.addEventListener('DOMContentLoaded', () => {
         const canManage = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'].includes(userRole);
         if(!canManage) return '';
         
+        const safeTitle = title ? title.replace(/'/g, "\\'").replace(/"/g, "&quot;") : '';
+        const safeContent = content ? content.replace(/'/g, "\\'").replace(/"/g, "&quot;").replace(/\n/g, " ") : '';
+        
         return `
             <div style="margin-top: 5px;">
                 <button onclick="openEditModal(${id}, '${type}', '${title.replace(/'/g, "\'")}', '${(content || '').replace(/'/g, "\'").replace(/\n/g, " ")}')" style="background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.8rem; margin-right:10px;"><i class="fa-solid fa-edit"></i> Edit</button>
+                <button onclick="openEditModal(${id}, '${type}', '${safeTitle}', '${safeContent}')" style="background:none; border:none; color:var(--primary); cursor:pointer; font-size:0.8rem; margin-right:10px;"><i class="fa-solid fa-edit"></i> Edit</button>
                 <button onclick="deleteItem(${id}, '${type}')" style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:0.8rem;"><i class="fa-solid fa-trash"></i> Delete</button>
             </div>
         `;
     }
-
     function initPortal(user) {
         updateFormPermissions();
 
