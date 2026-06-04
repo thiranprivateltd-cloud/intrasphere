@@ -172,7 +172,6 @@ app.post('/api/circulars', verifyToken, async (req, res) => {
     notifyUsers(supabase, null, `New Circular: ${title}`, content.substring(0, 50) + "...");
     res.json(data);
 });
-
 app.put('/api/circulars/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -181,7 +180,6 @@ app.put('/api/circulars/:id', verifyToken, async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
 });
-
 app.delete('/api/circulars/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -222,7 +220,6 @@ app.post('/api/announcements', verifyToken, async (req, res) => {
     notifyUsers(supabase, null, `Announcement: ${title}`, content.substring(0, 50) + "...");
     res.json(data);
 });
-
 app.put('/api/announcements/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -231,7 +228,6 @@ app.put('/api/announcements/:id', verifyToken, async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
 });
-
 app.delete('/api/announcements/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -279,7 +275,6 @@ app.post('/api/tasks', verifyToken, async (req, res) => {
     notifyUsers(supabase, [assigned_to], `New Task Assigned`, `You have a new task: ${title}`);
     res.json(data);
 });
-
 app.put('/api/tasks/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -288,7 +283,6 @@ app.put('/api/tasks/:id', verifyToken, async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
 });
-
 app.delete('/api/tasks/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -344,7 +338,6 @@ app.post('/api/meetings', verifyToken, async (req, res) => {
     notifyUsers(supabase, null, `Meeting Scheduled: ${title}`, `Scheduled for ${new Date(datetime).toLocaleString()}`);
     res.json(data);
 });
-
 app.put('/api/meetings/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -353,7 +346,6 @@ app.put('/api/meetings/:id', verifyToken, async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
 });
-
 app.delete('/api/meetings/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -410,7 +402,6 @@ app.post('/api/attendance', verifyToken, async (req, res) => {
     }
     res.json(data);
 });
-
 app.put('/api/attendance/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -419,7 +410,6 @@ app.put('/api/attendance/:id', verifyToken, async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
 });
-
 app.delete('/api/attendance/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -475,7 +465,6 @@ app.post('/api/notices', verifyToken, async (req, res) => {
     notifyUsers(supabase, [issued_to], `Official Notice Issued`, `Ref: ${refNum} - ${title}`);
     res.json(data);
 });
-
 app.put('/api/notices/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
@@ -484,7 +473,6 @@ app.put('/api/notices/:id', verifyToken, async (req, res) => {
     if (error) return res.status(500).json({ error: error.message });
     res.json({ success: true });
 });
-
 app.delete('/api/notices/:id', verifyToken, async (req, res) => {
     const allowedRoles = ['CEO', 'COO', 'Project Manager & Overall Execution Lead', 'HR Admin'];
     if (!allowedRoles.includes(req.userRole)) return res.status(403).json({ error: "Unauthorized." });
